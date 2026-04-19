@@ -7,13 +7,13 @@ CLI tool for managing JupyterHub on Kubernetes (k3s compatible).
 Install from GitHub:
 
 ```bash
-pip install git+https://github.com/yourusername/kube-jupyterhub.git
+pip install git+https://github.com/hiroshima-aidi/kube-jupyterhub.git
 ```
 
 Or for development:
 
 ```bash
-git clone https://github.com/yourusername/kube-jupyterhub.git
+git clone https://github.com/hiroshima-aidi/kube-jupyterhub.git
 cd kube-jupyterhub
 pip install -e .
 ```
@@ -61,6 +61,10 @@ kube-jupyterhub apply -f path/to/values.yaml
 # Don't wait for hub rollout to complete
 kube-jupyterhub apply --no-wait
 
+# Pre-pull notebook image(s) on all nodes before applying
+kube-jupyterhub apply --pull myregistry/notebook:latest
+kube-jupyterhub apply --pull myregistry/notebook:latest myregistry/gpu-notebook:v2
+
 # Skip confirmation for dangerous operations
 kube-jupyterhub refresh-full <username> --yes
 ```
@@ -72,6 +76,7 @@ Apply JupyterHub configuration using Helm.
 - `-r, --release`: Helm release name (default: `jupyterhub`)
 - `-f, --values`: Values file path (default: `config.yaml`)
 - `--no-wait`: Skip waiting for hub deployment rollout
+- `--pull IMAGE [IMAGE ...]`: Pre-pull image(s) on all nodes before applying. Deploys a temporary DaemonSet to pull each image, waits for completion on all nodes, then removes it. The singleuser image pull policy remains `IfNotPresent`, so subsequent pod spawns use the cache.
 
 ### `list`
 List all JupyterHub user pods with status, node, and creation timestamp.
@@ -94,6 +99,12 @@ kube-jupyterhub apply
 
 # Apply with wait disabled
 kube-jupyterhub apply --no-wait
+
+# Pre-pull a single image on all nodes, then apply
+kube-jupyterhub apply --pull myregistry/notebook:latest
+
+# Pre-pull multiple images on all nodes, then apply
+kube-jupyterhub apply --pull myregistry/notebook:latest myregistry/gpu-notebook:v2
 
 # List users in default namespace
 kube-jupyterhub list
