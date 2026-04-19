@@ -18,8 +18,48 @@ def run(cmd: list[str], check: bool = True) -> int:
     return proc.returncode
 
 
+def prepull_images(namespace: str, images: list[str]) -> None:
+    for image in images:
+        print(f"[INFO] Pre-pulling image on all nodes: {image}")
+    ds_name = "kube-jupyterhub-image-puller"
+    containers = "\n".join(
+        f'      - name: puller-{i}\n'
+        f'        image: "{image}"\n'
+        f'        command: ["sh", "-c", "sleep 3600"]'
+        for i, image in enumerate(images)
+    )
+    manifest = f"""\
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {ds_name}
+  namespace: {namespace}
+spec:
+  selector:
+    matchLabels:
+      app: {ds_name}
+  template:
+    metadata:
+      labels:
+        app: {ds_name}
+    spec:
+      tolerations:
+      - operator: Exists
+      containers:
+{containers}
+"""
+    print(f"[CMD] kubectl apply -f - (DaemonSet/{ds_name})")
+    subprocess.run(["kubectl", "apply", "-f", "-"], input=manifest.encode(), check=True)
+    run(["kubectl", "rollout", "status", f"daemonset/{ds_name}", "-n", namespace])
+    run(["kubectl", "delete", "daemonset", ds_name, "-n", namespace, "--ignore-not-found"])
+    print("[INFO] Pre-pull complete.")
+
+
 def apply_config(args: argparse.Namespace) -> None:
     print("[INFO] Applying JupyterHub config...")
+
+    if args.pull:
+        prepull_images(args.namespace, args.pull)
 
     run([
         "helm", "upgrade", "--install",
@@ -114,12 +154,20 @@ def main() -> None:
         action="store_true",
         help="Do not wait for hub rollout",
     )
+    p_apply.add_argument(
+        "--pull",
+        metavar="IMAGE",
+        nargs="+",
+        default=None,
+        help="Pre-pull IMAGE(s) on all nodes before applying (uses IfNotPresent afterwards)",
+    )
     p_apply.set_defaults(func=lambda args: apply_config(
         argparse.Namespace(
             namespace=args.namespace,
             release=args.release,
             values=args.values,
             wait=not args.no_wait,
+            pull=args.pull,
         )
     ))
 

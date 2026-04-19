@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kube-jupyterhub"
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI tool for managing JupyterHub on Kubernetes"
 readme = "README.md"
 requires-python = ">=3.9"
